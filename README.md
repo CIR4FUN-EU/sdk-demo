@@ -1,17 +1,22 @@
 # data-space-dpp-demo
 
-End-to-end demo of the Digital Product Passport (DPP) flow: gather product data
-(baked-in demo master data plus an EDC data-space connector), assemble a
-`Dpp4Fun` passport, store it in a **DPP repository**, and register it at the
-**DPP registry**. Repository and registry are real running services.
+## Demo scope
 
-Built on [`dpp-sdk`](https://pypi.org/project/dpp-sdk/) (typed models, codec,
-validation, and HTTP clients).
+End-to-end Digital Product Passport (DPP) flow against **real components and real
+clients** — no mocks. Five steps:
 
-## SDK components & where they come from
+1. **Pull asset** — fetch product data across the data space via the real EDC
+   connectors (provider ↔ consumer).
+2. **Build** — assemble a `Dpp4Fun` passport from the asset plus baked-in master
+   data, using the `dpp-sdk` models.
+3. **Validate** — check the passport against the `dpp-sdk` schema.
+4. **Store** — persist it in the real **DPP repository** via the `dpp-sdk`
+   repository client.
+5. **Register** — announce it at the real **DPP registry** via the `dpp-sdk`
+   registry client.
 
-The demo app uses three pulled-in pieces: the **EDC client** and the **repository**
-and **registry** clients (both from `dpp-sdk`), each talking to its running service.
+The diagram below shows the demo app's three clients (EDC, repository, registry),
+the running components each talks to, and where every piece is pulled from.
 
 ```mermaid
 flowchart LR
@@ -36,49 +41,40 @@ flowchart LR
     class edcgh,pypi,ghcr,samples src;
 ```
 
-## Pipeline
+## Ports
 
-```
-EDC asset ──► build_dpp ─► validate ─► repo.create_dpp ─► registry.post_new_dpp
-```
-
-| File | Role |
-|------|------|
-| `demo/connector.py` | Reads an EDC asset via `edc_client` |
-| `demo/build.py` | Baked-in product data + connector links → `dpp_sdk.Dpp4Fun` |
-| `demo/pipeline.py` | `run`: fetch → build → validate → store → register; `run_no_connector`: same minus the EDC fetch |
-| `demo/main.py` | CLI entry (`python -m demo`) |
-
-A reduced variant skips the data-space connector — build → validate →
-store → register — via `pipeline.run_no_connector` and a second web page.
+| Component | Host port | Container port |
+|-----------|-----------|----------------|
+| `demo-app` (web UI) | 8000 | 8000 |
+| `dpp-repo-api` | 18080 | 8080 |
+| `dpp-registry-api` | 18081 | 8081 |
+| `dpp-repo-db` (Postgres) | 5433 | 5432 |
+| `dpp-registry-db` (Postgres) | 5434 | 5432 |
+| `provider` connector | 19191–19195, 19291 | same |
+| `consumer` connector | 29191–29195, 29291 | same |
 
 ## Run (Docker, one click)
 
-The whole demo runs as containers — repository + registry (+ their Postgres),
-both EDC connectors, and the web app — from a single compose file. Safe demo
-defaults are baked in, so no `.env` is needed.
+**Prerequisite:** Docker Desktop (or the Docker daemon) must be installed and
+**running**. The repo/registry images are public on
+[ghcr.io/cir4fun-eu](https://github.com/orgs/CIR4FUN-EU/packages) — no login needed.
 
-**Prerequisites:** Docker + Compose. The DPP repo/registry images are public on
-[GitHub Container Registry](https://github.com/orgs/CIR4FUN-EU/packages) and the
-EDC client is pulled from public GitHub — nothing to log in to.
-
-From the repo root:
+Build and start everything:
 
 ```bash
-# build + start everything
 docker compose -f docker-compose.all.yml up -d --build
-# stop
+```
+
+Stop the containers:
+
+```bash
 docker compose -f docker-compose.all.yml stop
-# stop and delete containers + volumes
+```
+
+Stop and delete containers + volumes:
+
+```bash
 docker compose -f docker-compose.all.yml down -v
 ```
 
-Then open <http://localhost:8000> and run the cards in order. Inside the stack
-the services reach each other by Compose service name — nothing to configure.
-
-Two pages are served by the same app:
-
-| URL | Scope |
-|-----|-------|
-| `http://localhost:8000/` | Full pipeline (5 steps, incl. connector) |
-| `http://localhost:8000/no-connector` | Reduced — no connector (4 steps) |
+Then open <http://localhost:8000>.

@@ -118,7 +118,7 @@
 
   /* ---- Bottom stepper ribbon ---- */
   #ribbon { display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:18px;
-            padding:14px 16px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+            margin-bottom:28px; padding:14px 16px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
   #ribbon .lbl { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; }
   .rstep { display:flex; align-items:center; gap:7px; background:#0b1220; border:1px solid var(--line);
            border-radius:999px; padding:5px 12px 5px 6px; font-size:13px; cursor:pointer; }
@@ -176,6 +176,8 @@
   <p class="boundary-note">The data space and the registry live <b>outside your infrastructure</b> — that's where your
      data leaves your systems. The repository runs <b>within your own infrastructure</b>.
      <button class="reset" onclick="reset()" style="margin-left:10px">↺ Reset</button></p>
+
+  <div id="ribbon"></div>
 
   <div id="hub">
     <div class="tier sources">
@@ -247,8 +249,6 @@
       </div>
     </div>
   </div>
-
-  <div id="ribbon"></div>
 </main>
 
 <div id="overlay" onclick="if(event.target===this)closeDrill()">
