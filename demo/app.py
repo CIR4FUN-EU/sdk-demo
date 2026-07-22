@@ -7,7 +7,6 @@ import json
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
 from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,8 +15,6 @@ from dpp_sdk.clients import RegisterDppRequest
 from dpp_sdk.clients.errors import DppApiClientError, DppHttpClientError
 
 from demo import connector, build, pipeline, data_server
-
-load_dotenv()
 
 app = FastAPI(title="DPP pipeline demo")
 _INDEX = Path(__file__).parent / "static" / "index.html"
@@ -121,7 +118,8 @@ def step_store() -> dict:
         STATE["dpp_id"] = repo.create_dpp(STATE["dpp"]).dppId
     except Exception as e:
         raise HTTPException(502, f"Repository call failed ({repo_url}): {_detail(e)}")
-    return {"dppId": STATE["dpp_id"], "repoUrl": repo_url}
+    # Return a browser-reachable URL (host-published port), not the in-container one.
+    return {"dppId": STATE["dpp_id"], "repoUrl": os.getenv("DPP_REPO_PUBLIC_URL", repo_url)}
 
 
 @app.post("/api/register")
@@ -143,7 +141,9 @@ def step_register() -> dict:
         )
     except Exception as e:
         raise HTTPException(502, f"Registry call failed ({registry_url}): {_detail(e)}")
-    return {"registryIdentifier": resp.registryIdentifier, "registryUrl": registry_url}
+    # Return a browser-reachable URL (host-published port), not the in-container one.
+    return {"registryIdentifier": resp.registryIdentifier,
+            "registryUrl": os.getenv("DPP_REGISTRY_PUBLIC_URL", registry_url)}
 
 
 def _detail(e: Exception) -> str:
@@ -160,7 +160,7 @@ def _detail(e: Exception) -> str:
 def _require(var: str) -> str:
     val = os.getenv(var)
     if not val:
-        raise HTTPException(400, f"{var} is not set (configure it in .env).")
+        raise HTTPException(400, f"{var} is not set (configure it in the environment).")
     return val
 
 

@@ -8,7 +8,6 @@ import json
 import os
 import time
 
-from dotenv import load_dotenv
 from examples.connector import example_connector
 
 from . import data_server
@@ -16,9 +15,6 @@ from . import data_server
 ASSET_ID = "asset-1"
 POLICY_ID = "policy-1"
 CONTRACT_DEF_ID = "contract-def-1"
-
-# Use THIS project's .env (PROVIDER_/CONSUMER_ endpoints), not edc-client's examples/.env.
-load_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))
 
 # Where the provider fetches the asset backend. In the all-container stack it's the
 # demo-app service (set via env); host runs fall back to Docker's host alias.

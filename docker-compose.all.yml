@@ -10,15 +10,15 @@ services:
     container_name: dpp-repository-database
     image: postgres:16
     environment:
-      POSTGRES_DB: ${MOCK_REPO_POSTGRES_DB:-dpp_repo}
-      POSTGRES_USER: ${MOCK_REPO_POSTGRES_USER:-dpp_repo}
-      POSTGRES_PASSWORD: ${MOCK_REPO_POSTGRES_PASSWORD:-dpp_repo}
+      POSTGRES_DB: dpp_repo
+      POSTGRES_USER: dpp_repo
+      POSTGRES_PASSWORD: dpp_repo
     ports:
-      - "${MOCK_REPO_POSTGRES_PORT:-5433}:5432"
+      - "5433:5432"
     volumes:
       - dpp-repo-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${MOCK_REPO_POSTGRES_USER:-dpp_repo} -d ${MOCK_REPO_POSTGRES_DB:-dpp_repo}"]
+      test: ["CMD-SHELL", "pg_isready -U dpp_repo -d dpp_repo"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,15 +27,15 @@ services:
     container_name: dpp-registry-database
     image: postgres:16
     environment:
-      POSTGRES_DB: ${MOCK_REGISTRY_POSTGRES_DB:-dpp_registry}
-      POSTGRES_USER: ${MOCK_REGISTRY_POSTGRES_USER:-dpp_registry}
-      POSTGRES_PASSWORD: ${MOCK_REGISTRY_POSTGRES_PASSWORD:-dpp_registry}
+      POSTGRES_DB: dpp_registry
+      POSTGRES_USER: dpp_registry
+      POSTGRES_PASSWORD: dpp_registry
     ports:
-      - "${MOCK_REGISTRY_POSTGRES_PORT:-5434}:5432"
+      - "5434:5432"
     volumes:
       - dpp-registry-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${MOCK_REGISTRY_POSTGRES_USER:-dpp_registry} -d ${MOCK_REGISTRY_POSTGRES_DB:-dpp_registry}"]
+      test: ["CMD-SHELL", "pg_isready -U dpp_registry -d dpp_registry"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,14 +47,15 @@ services:
       dpp-repo-db:
         condition: service_healthy
     environment:
-      MOCK_REPO_PORT: ${MOCK_REPO_PORT:-8080}
-      DPP_REPO_PORT: ${DPP_REPO_PORT:-8080}
+      MOCK_REPO_PORT: 8080
+      DPP_REPO_PORT: 8080
       DPP_REPO_BACKEND: ${DPP_REPO_BACKEND:-postgres}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://dpp-repo-db:5432/${MOCK_REPO_POSTGRES_DB:-dpp_repo}
-      SPRING_DATASOURCE_USERNAME: ${MOCK_REPO_POSTGRES_USER:-dpp_repo}
-      SPRING_DATASOURCE_PASSWORD: ${MOCK_REPO_POSTGRES_PASSWORD:-dpp_repo}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://dpp-repo-db:5432/dpp_repo
+      SPRING_DATASOURCE_USERNAME: dpp_repo
+      SPRING_DATASOURCE_PASSWORD: dpp_repo
     ports:
-      - "${MOCK_REPO_PORT:-8080}:${MOCK_REPO_PORT:-8080}"
+      # host port decoupled from the in-container port: 8080 collides too often.
+      - "18080:8080"
 
   dpp-registry-api:
     container_name: dpp-registry-service
@@ -65,18 +66,19 @@ services:
       dpp-registry-db:
         condition: service_healthy
     environment:
-      MOCK_REPO_PORT: ${MOCK_REPO_PORT:-8080}
-      DPP_REPO_PORT: ${DPP_REPO_PORT:-8080}
-      MOCK_REGISTRY_PORT: ${MOCK_REGISTRY_PORT:-8081}
-      DPP_REGISTRY_PORT: ${DPP_REGISTRY_PORT:-8081}
+      MOCK_REPO_PORT: 8080
+      DPP_REPO_PORT: 8080
+      MOCK_REGISTRY_PORT: 8081
+      DPP_REGISTRY_PORT: 8081
       DPP_REGISTRY_BACKEND: ${DPP_REGISTRY_BACKEND:-postgres}
-      DEMO_REPO_PUBLIC_BASE_URL: ${DEMO_REPO_PUBLIC_BASE_URL:-http://localhost:${MOCK_REPO_PORT:-8080}}
-      DEMO_REPO_VERIFICATION_BASE_URL: ${DEMO_REPO_VERIFICATION_BASE_URL:-http://dpp-repo-api:${MOCK_REPO_PORT:-8080}}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://dpp-registry-db:5432/${MOCK_REGISTRY_POSTGRES_DB:-dpp_registry}
-      SPRING_DATASOURCE_USERNAME: ${MOCK_REGISTRY_POSTGRES_USER:-dpp_registry}
-      SPRING_DATASOURCE_PASSWORD: ${MOCK_REGISTRY_POSTGRES_PASSWORD:-dpp_registry}
+      DEMO_REPO_PUBLIC_BASE_URL: ${DEMO_REPO_PUBLIC_BASE_URL:-http://localhost:18080}
+      DEMO_REPO_VERIFICATION_BASE_URL: ${DEMO_REPO_VERIFICATION_BASE_URL:-http://dpp-repo-api:8080}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://dpp-registry-db:5432/dpp_registry
+      SPRING_DATASOURCE_USERNAME: dpp_registry
+      SPRING_DATASOURCE_PASSWORD: dpp_registry
     ports:
-      - "${MOCK_REGISTRY_PORT:-8081}:${MOCK_REGISTRY_PORT:-8081}"
+      # host port decoupled from the in-container port: 8081 collides too often.
+      - "18081:8081"
 
   provider:
     container_name: dataspace-provider-connector
@@ -120,8 +122,11 @@ services:
         condition: service_started
     environment:
       # Service names, not localhost: the app talks to peers over the compose network.
-      DPP_REPO_BASE_URL: http://dpp-repo-api:${MOCK_REPO_PORT:-8080}
-      DPP_REGISTRY_BASE_URL: http://dpp-registry-api:${MOCK_REGISTRY_PORT:-8081}
+      DPP_REPO_BASE_URL: http://dpp-repo-api:8080
+      DPP_REGISTRY_BASE_URL: http://dpp-registry-api:8081
+      # Browser-facing URLs for result links — the host-published ports.
+      DPP_REPO_PUBLIC_URL: http://localhost:18080
+      DPP_REGISTRY_PUBLIC_URL: http://localhost:18081
       DPP_OPERATOR_ID: ${DPP_OPERATOR_ID:-exampleOperator123}
       EDC_HOST: http://provider
       EDC_ASSET_ID: ${EDC_ASSET_ID:-demo-asset}
