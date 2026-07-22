@@ -1,0 +1,141 @@
+# One-click stack: repo + registry (+ their DBs), the two EDC connectors, and
+# the demo web app. Safe demo defaults, no env file needed:
+#   docker compose -f docker-compose.all.yml up -d --build
+# Then open http://localhost:8000
+#
+# In-container URLs use Compose service names, never localhost.
+
+services:
+  dpp-repo-db:
+    container_name: dpp-repository-database
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${MOCK_REPO_POSTGRES_DB:-dpp_repo}
+      POSTGRES_USER: ${MOCK_REPO_POSTGRES_USER:-dpp_repo}
+      POSTGRES_PASSWORD: ${MOCK_REPO_POSTGRES_PASSWORD:-dpp_repo}
+    ports:
+      - "${MOCK_REPO_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - dpp-repo-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MOCK_REPO_POSTGRES_USER:-dpp_repo} -d ${MOCK_REPO_POSTGRES_DB:-dpp_repo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dpp-registry-db:
+    container_name: dpp-registry-database
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${MOCK_REGISTRY_POSTGRES_DB:-dpp_registry}
+      POSTGRES_USER: ${MOCK_REGISTRY_POSTGRES_USER:-dpp_registry}
+      POSTGRES_PASSWORD: ${MOCK_REGISTRY_POSTGRES_PASSWORD:-dpp_registry}
+    ports:
+      - "${MOCK_REGISTRY_POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - dpp-registry-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MOCK_REGISTRY_POSTGRES_USER:-dpp_registry} -d ${MOCK_REGISTRY_POSTGRES_DB:-dpp_registry}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dpp-repo-api:
+    container_name: dpp-repository-service
+    image: ${DPP_IMAGE_REGISTRY:-ghcr.io/cir4fun-eu}/${DPP_REPO_IMAGE_NAME:-dpp-repo-api}:${DPP_IMAGE_TAG:-latest}
+    depends_on:
+      dpp-repo-db:
+        condition: service_healthy
+    environment:
+      MOCK_REPO_PORT: ${MOCK_REPO_PORT:-8080}
+      DPP_REPO_PORT: ${DPP_REPO_PORT:-8080}
+      DPP_REPO_BACKEND: ${DPP_REPO_BACKEND:-postgres}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://dpp-repo-db:5432/${MOCK_REPO_POSTGRES_DB:-dpp_repo}
+      SPRING_DATASOURCE_USERNAME: ${MOCK_REPO_POSTGRES_USER:-dpp_repo}
+      SPRING_DATASOURCE_PASSWORD: ${MOCK_REPO_POSTGRES_PASSWORD:-dpp_repo}
+    ports:
+      - "${MOCK_REPO_PORT:-8080}:${MOCK_REPO_PORT:-8080}"
+
+  dpp-registry-api:
+    container_name: dpp-registry-service
+    image: ${DPP_IMAGE_REGISTRY:-ghcr.io/cir4fun-eu}/${DPP_REGISTRY_IMAGE_NAME:-dpp-registry-api}:${DPP_IMAGE_TAG:-latest}
+    depends_on:
+      dpp-repo-api:
+        condition: service_started
+      dpp-registry-db:
+        condition: service_healthy
+    environment:
+      MOCK_REPO_PORT: ${MOCK_REPO_PORT:-8080}
+      DPP_REPO_PORT: ${DPP_REPO_PORT:-8080}
+      MOCK_REGISTRY_PORT: ${MOCK_REGISTRY_PORT:-8081}
+      DPP_REGISTRY_PORT: ${DPP_REGISTRY_PORT:-8081}
+      DPP_REGISTRY_BACKEND: ${DPP_REGISTRY_BACKEND:-postgres}
+      DEMO_REPO_PUBLIC_BASE_URL: ${DEMO_REPO_PUBLIC_BASE_URL:-http://localhost:${MOCK_REPO_PORT:-8080}}
+      DEMO_REPO_VERIFICATION_BASE_URL: ${DEMO_REPO_VERIFICATION_BASE_URL:-http://dpp-repo-api:${MOCK_REPO_PORT:-8080}}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://dpp-registry-db:5432/${MOCK_REGISTRY_POSTGRES_DB:-dpp_registry}
+      SPRING_DATASOURCE_USERNAME: ${MOCK_REGISTRY_POSTGRES_USER:-dpp_registry}
+      SPRING_DATASOURCE_PASSWORD: ${MOCK_REGISTRY_POSTGRES_PASSWORD:-dpp_registry}
+    ports:
+      - "${MOCK_REGISTRY_PORT:-8081}:${MOCK_REGISTRY_PORT:-8081}"
+
+  provider:
+    container_name: dataspace-provider-connector
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./demo/connector-configs/provider.properties:/app/config.properties:ro
+    ports:
+      - "19191:19191"
+      - "19192:19192"
+      - "19193:19193"
+      - "19194:19194"
+      - "19195:19195"
+      - "19291:19291"
+
+  consumer:
+    container_name: dataspace-consumer-connector
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./demo/connector-configs/consumer.properties:/app/config.properties:ro
+    ports:
+      - "29191:29191"
+      - "29192:29192"
+      - "29193:29193"
+      - "29194:29194"
+      - "29195:29195"
+      - "29291:29291"
+
+  demo-app:
+    container_name: cir4fun-demo-app
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    depends_on:
+      dpp-repo-api:
+        condition: service_started
+      dpp-registry-api:
+        condition: service_started
+    environment:
+      # Service names, not localhost: the app talks to peers over the compose network.
+      DPP_REPO_BASE_URL: http://dpp-repo-api:${MOCK_REPO_PORT:-8080}
+      DPP_REGISTRY_BASE_URL: http://dpp-registry-api:${MOCK_REGISTRY_PORT:-8081}
+      DPP_OPERATOR_ID: ${DPP_OPERATOR_ID:-exampleOperator123}
+      EDC_HOST: http://provider
+      EDC_ASSET_ID: ${EDC_ASSET_ID:-demo-asset}
+      # Provider fetches the asset backend from this app over the compose network.
+      DATA_SERVER_URL: http://demo-app:4000
+      PROVIDER_MANAGEMENT: http://provider:19193/management
+      PROVIDER_PROTOCOL: http://provider:19194/protocol/2025-1
+      PROVIDER_ID: provider
+      CONSUMER_MANAGEMENT: http://consumer:29193/management
+      CONSUMER_PROTOCOL: http://consumer:29194/protocol/2025-1
+      CONSUMER_ID: consumer
+    ports:
+      - "8000:8000"
+
+volumes:
+  dpp-repo-db-data:
+  dpp-registry-db-data:

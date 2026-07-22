@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cir4fun SDK — Digital Product Passport demo</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --muted:#94a3b8;
+          --accent:#38bdf8; --ok:#22c55e; --err:#ef4444; --run:#eab308;
+          --ext:#f59e0b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 system-ui,sans-serif; background:var(--bg); color:#e2e8f0; }
+  a { color:var(--accent); cursor:pointer; text-decoration:none; }
+  a.reslink { display:inline-block; margin-left:8px; padding:1px 8px; font-size:.85em;
+              border:1px solid var(--ok); border-radius:6px; color:var(--ok); }
+  a.reslink:hover { background:rgba(34,197,94,.12); }
+  header { padding:28px 24px 6px; max-width:1200px; margin:0 auto; }
+  h1 { margin:0 0 6px; font-size:24px; }
+  header p { margin:0; color:var(--muted); max-width:900px; }
+  .brand { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+  .brand img { height:38px; width:auto; display:block; background:#fff; border-radius:6px; padding:4px; }
+  main { max-width:1280px; margin:0 auto; padding:12px 24px 28px; }
+
+  .legend { display:flex; gap:20px; flex-wrap:wrap; align-items:center;
+            font-size:13px; color:var(--muted); margin:8px 0 6px; }
+  .legend .key { display:flex; align-items:center; gap:8px; }
+  .swatch { width:15px; height:15px; border-radius:4px; flex:none; }
+  .swatch.sdk { background:var(--accent); box-shadow:0 0 8px rgba(56,189,248,.6); }
+  .swatch.ext { background:transparent; border:1.5px dashed var(--ext); }
+  .coverage { margin-left:auto; font-weight:600; color:#e2e8f0;
+              background:rgba(56,189,248,.1); border:1px solid var(--accent);
+              border-radius:999px; padding:5px 14px; font-size:13px; }
+  .coverage b { color:var(--accent); }
+  .boundary-note { font-size:12px; color:var(--muted); margin:2px 0 14px; }
+  .boundary-note b { color:#cbd5e1; }
+
+  /* ---- The hub: three tiers — data sources on top, SDK in the middle, DPP systems below ---- */
+  #hub { display:flex; flex-direction:column; gap:20px; align-items:center; }
+  .tier { display:flex; flex-wrap:wrap; justify-content:center; align-items:stretch;
+          gap:16px; width:100%; max-width:820px; }
+  .tier > .node { flex:1 1 260px; max-width:390px; }
+  #node-sdk { max-width:520px; width:100%; }
+
+  /* Client rails: each SDK client shown as a labelled line between the SDK and the component it talks to. */
+  .wire { width:100%; max-width:820px; display:flex; justify-content:center; gap:60px; }
+  .connector { position:relative; }
+  .connector::before, .connector::after {
+    content:""; position:absolute; left:50%; width:0; height:16px;
+    border-left:2px dashed var(--accent); opacity:.55; }
+  .connector::before { bottom:100%; }   /* dashed line up toward the component above */
+  .connector::after { top:100%; }        /* dashed line down toward the SDK / component below */
+  .zone-tag { flex-basis:100%; text-align:center; font-size:11px; font-weight:700; letter-spacing:.05em;
+              text-transform:uppercase; color:var(--muted); }
+
+  .node { background:var(--card); border:1px solid var(--line);
+          border-radius:14px; padding:14px 16px; transition:border-color .2s, box-shadow .2s; }
+  .node.locked { opacity:.4; pointer-events:none; }
+  .node.done { border-color:var(--ok); }
+  .node.error { border-color:var(--err); }
+  .node-head { display:flex; align-items:center; gap:9px; }
+  .node-head .ic { font-size:19px; }
+  .node-head b { font-size:15px; flex:1; }
+  .node-desc { color:var(--muted); font-size:13px; margin:8px 0 10px; }
+  .tag-ext { display:inline-block; font-size:11px; color:var(--ext); font-weight:700;
+             text-transform:uppercase; letter-spacing:.04em; margin:6px 0 4px; }
+  .tag-in { display:inline-block; font-size:11px; color:var(--muted); font-weight:700;
+            text-transform:uppercase; letter-spacing:.04em; margin:6px 0 4px; }
+
+  .badge { font-size:11px; padding:3px 9px; border-radius:999px; background:var(--line);
+           color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .badge.running { background:var(--run); color:#3a2e00; }
+  .badge.done { background:var(--ok); color:#04300f; }
+  .badge.error { background:var(--err); color:#3a0606; }
+
+  /* Every SDK step carries the call + what it saves you. */
+  .sdk-note { background:#0b1220; border:1px solid var(--line); border-radius:8px;
+              padding:9px 11px; margin:8px 0 10px; font-size:12.5px; color:var(--muted); }
+  .sdk-note b { color:var(--accent); }
+  .sdk-note code { color:var(--accent); }
+  .saves { display:inline-block; background:rgba(56,189,248,.12); color:var(--accent);
+           border-radius:999px; padding:1px 9px; font-weight:700; font-size:11px; margin:6px 6px 0 0; }
+
+  button { background:var(--accent); color:#06283d; border:0; border-radius:8px;
+           padding:8px 15px; font-weight:600; cursor:pointer; font-size:14px; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.btn-ghost { background:transparent; color:var(--accent); border:1px solid var(--accent);
+                     padding:5px 12px; font-size:12.5px; margin-top:8px; }
+  .result { margin-top:10px; font-size:13px; }
+  .result .ok { color:#bbf7d0; }
+  .result .ok code { background:#0b1220; color:var(--ok); padding:1px 7px; border-radius:5px; }
+  .result .err { color:#fecaca; }
+  .result details { margin-top:8px; }
+  .result summary { cursor:pointer; color:var(--muted); font-size:12px; }
+  .result pre { background:#0b1220; border:1px solid var(--line); border-radius:8px; padding:11px;
+                overflow:auto; max-height:240px; margin:8px 0 0; font-size:12px; }
+
+  /* ---- SDK core: the star ---- */
+  .sdk-core { border:1.5px solid var(--accent);
+              background:rgba(56,189,248,.06); box-shadow:0 0 34px rgba(56,189,248,.16);
+              padding:16px 18px 18px; }
+  .core-title { font-size:18px; font-weight:800; color:var(--accent); letter-spacing:.02em; }
+  .core-sub { color:var(--muted); font-size:12.5px; margin:4px 0 12px; }
+  .chips { display:flex; justify-content:center; gap:8px; margin-bottom:14px; }
+  .chip { display:flex; flex-direction:column; align-items:flex-start; gap:1px; text-align:left;
+          background:var(--card); color:#e2e8f0; border:1px solid var(--line); border-radius:9px;
+          padding:8px 10px; font-size:12.5px; font-weight:700; cursor:default; transition:.2s; }
+  .chip small { font-weight:500; color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; }
+  .chip.link { cursor:pointer; }
+  .chip.link:hover { border-color:var(--accent); }
+  .chip.active { border-color:var(--accent); background:rgba(56,189,248,.14);
+                 box-shadow:0 0 14px rgba(56,189,248,.3); }
+  .core-action { border-top:1px solid var(--line); padding-top:12px; transition:opacity .2s; }
+  .core-action.locked { opacity:.45; }
+  .core-action .head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .core-action .head b { flex:1; font-size:14px; }
+  .call code { background:#0b1220; padding:3px 8px; border-radius:6px; color:var(--accent);
+               display:inline-block; font-size:12px; margin-bottom:8px; }
+
+  /* ---- Bottom stepper ribbon ---- */
+  #ribbon { display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:18px;
+            padding:14px 16px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+  #ribbon .lbl { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; }
+  .rstep { display:flex; align-items:center; gap:7px; background:#0b1220; border:1px solid var(--line);
+           border-radius:999px; padding:5px 12px 5px 6px; font-size:13px; cursor:pointer; }
+  .rstep .rn { width:20px; height:20px; border-radius:50%; background:var(--line); color:#cbd5e1;
+               display:grid; place-items:center; font-size:11px; font-weight:700; flex:none; }
+  .rstep.sdk .rn { background:var(--accent); color:#06283d; }
+  .rstep.done { border-color:var(--ok); } .rstep.done .rn { background:var(--ok); color:#04300f; }
+  .rstep .arr { color:var(--muted); }
+  #runall { margin-left:auto; }
+  .reset { color:var(--accent); background:none; padding:0; font-weight:500; border:0; cursor:pointer; font-size:13px; }
+
+  /* ---- EDC drill-in overlay ---- */
+  #overlay { display:none; position:fixed; inset:0; z-index:50; background:rgba(2,6,23,.72);
+             padding:32px 16px; overflow:auto; }
+  #overlay.open { display:block; }
+  .panel { max-width:820px; margin:0 auto; background:var(--card); border:1.5px solid var(--accent);
+           border-radius:16px; padding:22px 24px 26px; box-shadow:0 0 40px rgba(56,189,248,.2); }
+  .panel-head { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+  .panel-head .title { font-size:17px; font-weight:700; flex:1; }
+  .panel-head .zoom-tag { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .panel-head .x { background:none; color:var(--muted); font-size:22px; padding:0 6px; }
+  .panel .lede { color:var(--muted); font-size:13.5px; margin:0 0 6px; }
+  .panel .lede b { color:var(--accent); }
+  .flow-card { background:#0b1220; border:1px solid var(--line); border-radius:11px; padding:12px 14px; margin-top:10px; }
+  .flow-card.locked { opacity:.4; pointer-events:none; }
+  .flow-card.done { border-color:var(--ok); } .flow-card.error { border-color:var(--err); }
+  .flow-card .head { display:flex; align-items:center; gap:9px; }
+  .flow-card .num { width:24px; height:24px; border-radius:50%; background:var(--accent); color:#06283d;
+                    font-weight:700; display:grid; place-items:center; font-size:12px; flex:none; }
+  .flow-card .title { flex:1; font-size:14px; font-weight:600; }
+  .flow-card .desc { color:var(--muted); font-size:12.5px; margin:7px 0 9px; }
+  .flow-card pre { background:#020617; border:1px solid var(--line); border-radius:8px; padding:10px;
+                   overflow:auto; max-height:220px; margin:9px 0 0; font-size:12px; }
+
+  @media (max-width:720px) {
+    .infra-inner { grid-template-columns:1fr; }
+    .chips { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <img src="/static/cir4fun-logo.webp" alt="Cir4Fun logo">
+    <h1>cir4fun SDK — Digital Product Passport demo</h1>
+  </div>
+  <p id="intro"></p>
+</header>
+<main>
+  <div class="legend">
+    <span class="key"><span class="swatch sdk"></span> cir4fun SDK</span>
+    <span class="key"><span class="swatch ext"></span> External mocked infra (Docker)</span>
+    <span class="coverage">SDK operations run: <b id="cov-done">0</b> / <span id="cov-total">0</span></span>
+  </div>
+  <p class="boundary-note">The data space and the registry live <b>outside your infrastructure</b> — that's where your
+     data leaves your systems. The repository runs <b>within your own infrastructure</b>.
+     <button class="reset" onclick="reset()" style="margin-left:10px">↺ Reset</button></p>
+
+  <div id="hub">
+    <div class="tier sources">
+      <span class="zone-tag">Data source</span>
+
+      <div id="node-provider" class="node">
+        <div class="node-head"><span class="ic">📤</span><b>Data Space (Provider)</b><span class="badge" id="badge-provider">pending</span></div>
+        <span class="tag-ext">Another participant · outside your infra</span>
+        <p class="node-desc">Publishes the asset you're entitled to: registers the asset, its ODRL policy, and the contract definition.</p>
+        <div class="sdk-note"><b>EDC client</b> · <code>create_asset / create_policy / create_contract_def</code><br>
+          <span class="saves">3 SDK calls · steps 1–3</span></div>
+        <button id="btn-provider" onclick="runProvider()">Create Data Asset</button>
+        <button class="btn-ghost" onclick="openDrill('provider')">See steps 1–3 ▸</button>
+        <div class="result" id="res-provider"></div>
+      </div>
+
+      <div id="node-consumer" class="node" data-step="connector">
+        <div class="node-head"><span class="ic">📥</span><b>Data Space (Consumer)</b><span class="badge" id="badge-connector">pending</span></div>
+        <span class="tag-ext">Steps 4–10 · your side</span>
+        <p class="node-desc">Negotiates the contract, runs the transfer, and pulls the asset across the data space.</p>
+        <div class="sdk-note"><b>EDC client</b> · <code>negotiate_and_transfer(...)</code><br>
+          <span class="saves">1 SDK call · steps 4–10</span></div>
+        <button id="btn-connector" onclick="runConsumer()">Pull Asset from data space</button>
+        <button class="btn-ghost" onclick="openDrill('consumer')">See steps 4–10 ▸</button>
+        <div class="result" id="res-connector"></div>
+      </div>
+    </div>
+
+    <div class="wire wire-up" id="wire-edc">
+      <span class="chip connector" id="chip-edc">EDC client<small>data space</small></span>
+    </div>
+
+    <div id="node-sdk" class="node sdk-core">
+      <div class="core-title">cir4fun SDK</div>
+      <p class="core-sub">A suite of clients — one per protocol, each its own project. Your systems and the outside
+         world never talk directly; every connection is one of these SDK clients, shown on the lines above and below.</p>
+      <div class="chips">
+        <button class="chip" id="chip-model">DPP model + validation<small>build &amp; check</small></button>
+      </div>
+      <div class="core-action">
+        <div class="head"><b>Build &amp; validate the DPP</b><span class="badge" id="badge-build">pending</span></div>
+        <div class="call"><code>validate_dpp4fun(Dpp4Fun(...))</code></div>
+        <button id="btn-build" onclick="runStep('build')">Build &amp; validate</button>
+        <div class="result" id="res-build"></div>
+      </div>
+    </div>
+
+    <div class="wire wire-down" id="wire-systems">
+      <button class="chip connector" id="chip-repo">Repository client<small>store ▾</small></button>
+      <button class="chip connector" id="chip-registry">Registry client<small>register ▾</small></button>
+    </div>
+
+    <div class="tier systems">
+      <span class="zone-tag">DPP system components</span>
+
+      <div id="node-repo" class="node" data-step="store">
+        <div class="node-head"><span class="ic">🐳</span><b>DPP Repository</b><span class="badge" id="badge-store">pending</span></div>
+        <span class="tag-in">Mocked service (Docker) · within your infra</span>
+        <div class="sdk-note"><b>Repository client</b> · <code>repo.create_dpp(dpp)</code></div>
+        <button id="btn-store" onclick="runStep('store')">Store passport</button>
+        <div class="result" id="res-store"></div>
+      </div>
+      <div id="node-registry" class="node" data-step="register">
+        <div class="node-head"><span class="ic">🐳</span><b>DPP Registry</b><span class="badge" id="badge-register">pending</span></div>
+        <span class="tag-ext">Mocked service (Docker) · outside your infra</span>
+        <div class="sdk-note"><b>Registry client</b> · <code>registry.post_new_dpp_to_registry(...)</code></div>
+        <button id="btn-register" onclick="runStep('register')">Register passport</button>
+        <div class="result" id="res-register"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ribbon"></div>
+</main>
+
+<div id="overlay" onclick="if(event.target===this)closeDrill()">
+  <div class="panel">
+    <div class="panel-head">
+      <span class="ic">🔍</span>
+      <span class="title" id="drill-title">EDC client</span>
+      <span class="zoom-tag">SDK · data space</span>
+      <button class="x" onclick="closeDrill()">×</button>
+    </div>
+    <p class="lede" id="drill-lede"></p>
+    <div id="flow-steps"></div>
+  </div>
+</div>
+
+<script>
+const WITH_CONNECTOR = !location.pathname.includes("no-connector");
+
+document.getElementById("intro").innerHTML =
+  "The <b>cir4fun SDK</b> sits in the center. It pulls in product data" +
+  (WITH_CONNECTOR ? " across the data space" : "") +
+  ", aggregates it into a standard Digital Product Passport, then stores and registers it in external " +
+  "services that live outside your infrastructure. Every connection you see is one SDK client doing the talking." +
+  (WITH_CONNECTOR ? "" : " (This reduced variant skips the data-space connector.)");
+
+const esc = s => s.replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
+// Small link to the stored resource, shown only when both base URL and id are present.
+// Backend URLs use container service names (dpp-repo-api); rewrite the host to the
+// page's host so the browser can reach them, keeping the port + path.
+const link = (base, path, id, label) => {
+  if (!base || !id) return "";
+  const u = new URL(base); u.hostname = location.hostname;
+  return ` <a class="reslink" href="${esc(u.origin + path + id)}" target="_blank" rel="noopener">🔗 ${label}</a>`;
+};
+
+// One row per clickable step. via = which SDK chip lights up. summary = plain-language result.
+const STEPS = [
+  { id:"connector", ep:"/api/connector", sdk:true, via:"edc", needs:["provider"], connectorOnly:true,
+    summary:() => `Pulled an asset across the data space — one SDK call handled all 8 protocol steps` },
+  { id:"build", ep:"/api/build", sdk:true, via:"model", needs:WITH_CONNECTOR ? ["connector"] : [],
+    summary:() => `Aggregated the sources into one validated standard DPP` },
+  { id:"store", ep:"/api/store", sdk:true, via:"repo", needs:["build"],
+    summary:d => `Passport stored ✓  <code>dppId = ${d.dppId}</code>${link(d.repoUrl, "/dpps/", d.dppId, "open stored passport")}` },
+  { id:"register", ep:"/api/register", sdk:true, via:"registry", needs:["store"],
+    summary:d => `Registered for discovery ✓  <code>registryIdentifier = ${d.registryIdentifier}</code>${link(d.registryUrl, "/registry/dpps/", d.registryIdentifier, "open registry entry")}` },
+].filter(s => WITH_CONNECTOR || !s.connectorOnly);
+
+const byId = Object.fromEntries(STEPS.map(s => [s.id, s]));
+const done = new Set();
+
+// provider ("Create") is an SDK op run outside STEPS, so count it too.
+const EXTRA_SDK = WITH_CONNECTOR ? 1 : 0;
+document.getElementById("cov-total").textContent = STEPS.filter(s => s.sdk).length + EXTRA_SDK;
+
+// step id -> node element id, for drawing/lighting the connector line.
+const NODE_OF = { provider:"node-provider", connector:"node-consumer", store:"node-repo", register:"node-registry" };
+
+if (!WITH_CONNECTOR) {  // hide the data-space spoke (and its now-empty tier) entirely
+  document.querySelector(".tier.sources").style.display = "none";
+  document.getElementById("wire-edc").style.display = "none";
+}
+
+// ---- ribbon ----
+// Provider "Create" leads the bar when the connector is present; the rest come from STEPS.
+const RIBBON = [
+  ...(WITH_CONNECTOR ? [{ id:"provider", label:"Create", sdk:true }] : []),
+  ...STEPS.map(s => ({ id:s.id, label:{ connector:"Pull", build:"Build", store:"Store", register:"Register" }[s.id], sdk:s.sdk })),
+];
+function renderRibbon() {
+  const rb = document.getElementById("ribbon");
+  const chips = RIBBON.map((s, i) => {
+    const arr = i < RIBBON.length - 1 ? '<span class="arr">→</span>' : "";
+    return `<div class="rstep ${s.sdk ? "sdk" : ""}" id="r-${s.id}" onclick="focusNode('${s.id}')">
+              <span class="rn">${i + 1}</span>${s.label}</div>${arr}`;
+  }).join("");
+  rb.innerHTML = `<span class="lbl">Process</span>${chips}
+                  <button id="runall" onclick="runAll(this)">▶ Run all</button>`;
+}
+
+function focusNode(id) {
+  const node = document.getElementById(NODE_OF[id] || "node-sdk");
+  node.scrollIntoView({ behavior: "smooth", block: "center" });
+  node.animate([{ boxShadow: "0 0 0 3px var(--accent)" }, { boxShadow: "0 0 0 0 transparent" }], { duration: 900 });
+}
+
+// ---- run a step ----
+function setBadge(id, state, text) {
+  const b = document.getElementById("badge-" + id);
+  b.className = "badge " + state; b.textContent = text;
+}
+
+async function runStep(id) {
+  const s = byId[id];
+  const btn = document.getElementById("btn-" + id);
+  const res = document.getElementById("res-" + id);
+  const node = document.getElementById(NODE_OF[id] || "node-sdk");
+  node.classList.remove("error");
+  setBadge(id, "running", "running…"); if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(s.ep, { method: "POST" });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || r.statusText);
+    res.innerHTML = `<div class="ok">✅ ${s.summary(data)}</div>
+      <details><summary>details (JSON)</summary><pre>${esc(JSON.stringify(data, null, 2))}</pre></details>`;
+    setBadge(id, "done", "done"); node.classList.add("done");
+    done.add(id);
+    if (s.via) document.getElementById("chip-" + s.via).classList.add("active");
+    const rc = document.getElementById("r-" + id); if (rc) rc.classList.add("done");
+    refreshLocks(); updateCoverage();
+    return true;
+  } catch (e) {
+    res.innerHTML = `<div class="err">❌ ${esc(e.message)}</div>`;
+    setBadge(id, "error", "error"); node.classList.add("error"); if (btn) btn.disabled = false;
+    return false;
+  }
+}
+
+// Both cards run their party's flow steps in a row via the per-step endpoints, so the
+// drill-in detail view can show each step's JSON afterwards. cfg.badge/res/node/btn are element ids.
+async function runGroup(party, cfg) {
+  const btn = document.getElementById(cfg.btn), res = document.getElementById(cfg.res);
+  const node = document.getElementById(cfg.node);
+  node.classList.remove("error");
+  setBadge(cfg.badge, "running", "running…"); btn.disabled = true;
+  try {
+    for (const s of FLOW_STEPS.filter(f => f.party === party)) {
+      const opts = { method: "POST" };
+      if (s.editable) {
+        const d = await (await fetch("/api/connector/asset-defaults")).json();
+        opts.headers = { "Content-Type": "application/json" }; opts.body = JSON.stringify(d);
+      }
+      const r = await fetch("/api/connector/" + s.id, opts);
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      flowResults[s.id] = data; flowDone.add(s.id);
+    }
+    res.innerHTML = `<div class="ok">✅ ${cfg.ok}</div>`;
+    setBadge(cfg.badge, "done", "done"); node.classList.add("done");
+    document.getElementById("chip-edc").classList.add("active");
+    if (currentParty === party) renderFlow(party);  // refresh open drill with results
+    cfg.after && cfg.after();
+    refreshLocks(); updateCoverage();
+  } catch (e) {
+    res.innerHTML = `<div class="err">❌ ${esc(e.message)}</div>`;
+    setBadge(cfg.badge, "error", "error"); node.classList.add("error"); btn.disabled = false;
+  }
+}
+
+const runProvider = () => runGroup("provider", { btn: "btn-provider", res: "res-provider",
+  node: "node-provider", badge: "provider", ok: "Asset published to the data space — steps 1–3 done",
+  after: () => { done.add("provider"); const rc = document.getElementById("r-provider"); if (rc) rc.classList.add("done"); } });
+
+const runConsumer = () => runGroup("consumer", { btn: "btn-connector", res: "res-connector",
+  node: "node-consumer", badge: "connector", ok: "Asset pulled across the data space — steps 4–10 done",
+  after: () => { done.add("connector"); const rc = document.getElementById("r-connector"); if (rc) rc.classList.add("done"); } });
+
+async function runAll(btn) {
+  btn.disabled = true;
+  if (WITH_CONNECTOR && !done.has("provider")) await runProvider();  // Create leads the chain
+  for (const s of STEPS) {
+    if (done.has(s.id)) continue;
+    // connector runs the same per-step path as the Pull button so its results show in the drill
+    const ok = s.id === "connector" ? (await runConsumer(), done.has("connector")) : await runStep(s.id);
+    if (!ok) break;
+    await new Promise(r => setTimeout(r, 450));   // let the glow read
+  }
+  btn.disabled = false;
+}
+
+function refreshLocks() {
+  for (const s of STEPS) {
+    const node = document.getElementById(NODE_OF[s.id] || "node-sdk");
+    const btn = document.getElementById("btn-" + s.id);
+    const unlocked = s.needs.every(n => done.has(n));
+    if (btn) btn.disabled = !unlocked || done.has(s.id);
+    if (NODE_OF[s.id] && !done.has(s.id)) node.classList.toggle("locked", !unlocked);
+    if (s.id === "build") document.querySelector("#node-sdk .core-action")
+        .classList.toggle("locked", !unlocked && !done.has("build"));
+  }
+}
+
+function updateCoverage() {
+  document.getElementById("cov-done").textContent =
+    STEPS.filter(s => s.sdk && done.has(s.id)).length + (EXTRA_SDK && done.has("provider") ? 1 : 0);
+}
+
+// ---- EDC drill-in overlay (8-step flow) ----
+const FLOW_STEPS = [
+  { id:"create-asset", party:"provider", title:"Create asset", editable:true,
+    desc:"Register the HttpData asset on the provider. Edit the JSON below before running." },
+  { id:"create-policy", party:"provider", title:"Create policy", desc:"Create the ODRL policy definition on the provider." },
+  { id:"create-contract-def", party:"provider", title:"Create contract definition", desc:"Link the policy to the asset via a contract definition." },
+  { id:"catalog", party:"consumer", title:"Fetch catalog", desc:"Consumer fetches the provider's catalog and picks the offer." },
+  { id:"negotiate", party:"consumer", title:"Negotiate", desc:"Consumer initiates the contract negotiation." },
+  { id:"negotiation-status", party:"consumer", title:"Poll negotiation", desc:"Wait for the negotiation to reach FINALIZED." },
+  { id:"transfer", party:"consumer", title:"Start transfer", desc:"Consumer starts the HttpData-PULL transfer." },
+  { id:"transfer-status", party:"consumer", title:"Poll transfer", desc:"Wait for the transfer to reach STARTED." },
+  { id:"edr", party:"consumer", title:"Get EDR", desc:"Fetch the Endpoint Data Reference (endpoint + auth token)." },
+  { id:"pull", party:"consumer", title:"Pull data", desc:"GET the data through the EDR endpoint." },
+];
+const flowDone = new Set();
+const flowResults = {};   // step id -> last response JSON, so the drill can show it after a run
+let currentParty = null;
+
+async function renderFlow(party) {
+  currentParty = party;
+  document.getElementById("flow-steps").innerHTML = FLOW_STEPS
+    .map((fs, i) => ({ fs, i }))
+    .filter(x => x.fs.party === party)
+    .map(({ fs, i }) => `
+    <div class="flow-card ${flowDone.has(fs.id) ? "done" : "locked"}" id="fc-${fs.id}">
+      <div class="head"><span class="num">${i + 1}</span><span class="title">${fs.title}</span>
+        <span class="badge ${flowDone.has(fs.id) ? "done" : ""}" id="fb-${fs.id}">${flowDone.has(fs.id) ? "done" : "pending"}</span></div>
+      <p class="desc">${fs.desc}</p>
+      ${fs.editable ? `<textarea id="flow-input-${fs.id}" style="width:100%;min-height:120px;background:#020617;color:#e2e8f0;border:1px solid var(--line);border-radius:8px;padding:8px;font:12px monospace;margin-bottom:8px"></textarea>` : ""}
+      <button id="fbtn-${fs.id}" onclick="runFlowStep('${fs.id}')">Run step</button>
+      <div id="fo-${fs.id}">${flowResults[fs.id] ? `<pre>${esc(JSON.stringify(flowResults[fs.id], null, 2))}</pre>` : ""}</div>
+    </div>`).join("");
+  refreshFlowLocks();
+  const assetInput = document.getElementById("flow-input-create-asset");
+  if (assetInput) {
+    const res = await fetch("/api/connector/asset-defaults");
+    assetInput.value = JSON.stringify(await res.json(), null, 2);
+  }
+}
+
+function refreshFlowLocks() {
+  FLOW_STEPS.forEach((fs, i) => {
+    const card = document.getElementById("fc-" + fs.id);
+    if (!card || card.classList.contains("done") || card.classList.contains("error")) return;
+    card.classList.toggle("locked", !(i === 0 || flowDone.has(FLOW_STEPS[i - 1].id)));
+  });
+}
+
+async function runFlowStep(id) {
+  const btn = document.getElementById("fbtn-" + id), out = document.getElementById("fo-" + id);
+  const card = document.getElementById("fc-" + id), badge = document.getElementById("fb-" + id);
+  card.classList.remove("error");
+  badge.className = "badge running"; badge.textContent = "running…"; btn.disabled = true;
+  try {
+    const input = document.getElementById("flow-input-" + id);
+    const opts = { method: "POST" };
+    if (input) { opts.headers = { "Content-Type": "application/json" }; opts.body = input.value; }
+    const r = await fetch("/api/connector/" + id, opts);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || r.statusText);
+    out.innerHTML = `<pre>${esc(JSON.stringify(data, null, 2))}</pre>`;
+    badge.className = "badge done"; badge.textContent = "done"; card.classList.add("done");
+    flowResults[id] = data; flowDone.add(id); refreshFlowLocks();
+    if (id === "pull") {
+      setBadge("connector", "done", "done");
+      done.add("connector"); refreshLocks(); updateCoverage();
+    }
+  } catch (e) {
+    out.innerHTML = `<pre>❌ ${esc(e.message)}</pre>`;
+    badge.className = "badge error"; badge.textContent = "error"; card.classList.add("error"); btn.disabled = false;
+  }
+}
+
+const DRILL = {
+  provider: { title: "EDC client — Provider setup (steps 1–3)",
+    lede: "The provider publishes the asset: <b>create_asset → create_policy → create_contract_def</b>. Run each step to make the asset available in the data space." },
+  consumer: { title: "EDC client — Consumer pull (steps 4–10)",
+    lede: "On the hub you clicked once: <b>negotiate_and_transfer(...)</b>. That single SDK call runs steps 4–10 for you. Walk them step by step here." },
+};
+function openDrill(party = "consumer") {
+  document.getElementById("drill-title").textContent = DRILL[party].title;
+  document.getElementById("drill-lede").innerHTML = DRILL[party].lede;
+  renderFlow(party);
+  document.getElementById("overlay").classList.add("open");
+}
+function closeDrill() { document.getElementById("overlay").classList.remove("open"); }
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrill(); });
+
+// ---- reset ----
+async function reset() {
+  await fetch("/api/reset", { method: "POST" });
+  done.clear(); flowDone.clear(); Object.keys(flowResults).forEach(k => delete flowResults[k]); closeDrill();
+  setBadge("provider", "", "pending");
+  document.getElementById("res-provider").innerHTML = "";
+  document.getElementById("node-provider").classList.remove("done", "error");
+  document.getElementById("btn-provider").disabled = false;
+  const rp = document.getElementById("r-provider"); if (rp) rp.classList.remove("done");
+  for (const s of STEPS) {
+    setBadge(s.id, "", "pending");
+    document.getElementById("res-" + s.id).innerHTML = "";
+    const node = document.getElementById(NODE_OF[s.id] || "node-sdk");
+    node.classList.remove("done", "error");
+    const rc = document.getElementById("r-" + s.id); if (rc) rc.classList.remove("done");
+  }
+  document.querySelectorAll(".chip.active").forEach(c => c.classList.remove("active"));
+  currentParty = null; document.getElementById("flow-steps").innerHTML = "";
+  refreshLocks(); updateCoverage();
+}
+
+// ---- boot ----
+renderRibbon();
+refreshLocks();
+</script>
+</body>
+</html>
