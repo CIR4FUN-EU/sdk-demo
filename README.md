@@ -1,5 +1,11 @@
 # data-space-dpp-demo
 
+
+
+https://github.com/user-attachments/assets/97eb0859-554e-4d96-b8af-734e42be17f6
+
+
+
 ## Demo scope
 
 End-to-end Digital Product Passport (DPP) flow against **real components and real
