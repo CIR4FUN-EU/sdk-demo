@@ -42,7 +42,7 @@ services:
 
   dpp-repo-api:
     container_name: dpp-repository-service
-    image: ${DPP_IMAGE_REGISTRY:-ghcr.io/cir4fun-eu}/${DPP_REPO_IMAGE_NAME:-dpp-repo-api}:${DPP_IMAGE_TAG:-latest}
+    image: ${DPP_IMAGE_REGISTRY:-ghcr.io/cir4fun-eu}/${DPP_REPO_IMAGE_NAME:-dpp-repo-api}:${DPP_IMAGE_TAG:-0.4.0}
     depends_on:
       dpp-repo-db:
         condition: service_healthy
@@ -59,7 +59,7 @@ services:
 
   dpp-registry-api:
     container_name: dpp-registry-service
-    image: ${DPP_IMAGE_REGISTRY:-ghcr.io/cir4fun-eu}/${DPP_REGISTRY_IMAGE_NAME:-dpp-registry-api}:${DPP_IMAGE_TAG:-latest}
+    image: ${DPP_IMAGE_REGISTRY:-ghcr.io/cir4fun-eu}/${DPP_REGISTRY_IMAGE_NAME:-dpp-registry-api}:${DPP_IMAGE_TAG:-0.4.0}
     depends_on:
       dpp-repo-api:
         condition: service_started
