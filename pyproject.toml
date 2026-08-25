@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 # edc_client is installed manually (generated EDC OpenAPI client, not on PyPI) — not listed here
 dependencies = [
-    "dpp-sdk>=0.2.1",
+    "dpp-sdk>=0.4.0",
     "python-dotenv>=1.0",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
