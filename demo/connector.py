@@ -1,6 +1,6 @@
 """Data-space connector source for the DPP demo.
 
-Thin adapter over the edc-client Connector class (installed editable as edc_demo):
+Thin adapter over the locally vendored edc-client Connector helper:
 provider-set up an asset, then consumer-pull it across the data space.
 """
 
@@ -8,7 +8,7 @@ import json
 import os
 import time
 
-from examples.connector import example_connector
+from .edc_connector import example_connector
 
 from . import data_server
 
